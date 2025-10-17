@@ -11,72 +11,74 @@ struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Title
-            Text("Welcome")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .padding(.bottom, 30)
+        VStack(spacing: 0) {
+            // Top banner
+            HStack {
+                Text("Realspace")
+                    .font(.appTitle)
+                    .fontWeight(.bold)
 
-            // Email field
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Email")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                TextField("Enter your email", text: $viewModel.email)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.emailAddress)
-                    .autocorrectionDisabled()
+                Spacer()
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 15)
 
-            // Password field
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Password")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+            Spacer()
 
-                SecureField("Enter your password", text: $viewModel.password)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-            }
+            // Login form
+            VStack(spacing: 20) {
+                Text("Welcome")
+                    .font(.postAuthor)
+                    .fontWeight(.bold)
 
-            // Error message
-            if !viewModel.errorMessage.isEmpty {
-                Text(viewModel.errorMessage)
-                    .font(.subheadline)
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-            }
+                // Email field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Email")
+                        .font(.postBody)
 
-            // Login button
-            Button(action: {
-                viewModel.login()
-            }) {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                } else {
+                    TextField("Enter your email", text: $viewModel.email)
+                        .font(.postBody)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .border(.black, width: 0.5)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                        .autocorrectionDisabled()
+                }
+
+                // Password field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Password")
+                        .font(.postBody)
+
+                    SecureField("Enter your password", text: $viewModel.password)
+                        .font(.postBody)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .border(.black, width: 0.5)
+                }
+
+                // Login button
+                Button(action: {
+                    viewModel.login()
+                }) {
                     Text("Login")
+                        .font(.postBody)
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        .padding(.vertical, 15)
+                        .background(Color(.black))
+                        .foregroundColor(.white)
+                        .border(.black, width: 0.5)
                 }
+                .padding(.top, 10)
             }
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(10)
-            .disabled(viewModel.isLoading)
-            .padding(.top, 10)
+            .padding(.horizontal, 30)
 
             Spacer()
         }
-        .padding(.horizontal, 30)
-        .padding(.top, 50)
         .fullScreenCover(isPresented: $viewModel.isLoggedIn) {
-            ContentView()
+            MainTabView()
         }
     }
 }

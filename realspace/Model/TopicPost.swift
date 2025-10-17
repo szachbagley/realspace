@@ -1,5 +1,5 @@
 //
-//  Post.swift
+//  TopicPost.swift
 //  realspace
 //
 //  Created by Zach Bagley on 10/3/25.
@@ -9,30 +9,26 @@ import Foundation
 import SwiftData
 
 @Model
-class Post {
+class TopicPost {
     @Attribute(.unique) var id: UUID
-    var action: String
-    var subject: String
-    var content: String?
-    var imageURL: String?
+    var content: String
     var createdAt: Date
     var likesCount: Int
-    
+
     // Relationships
     var author: User?
-    
-    @Relationship(deleteRule: .cascade, inverse: \Comment.post)
+    var topic: Topic?
+
+    @Relationship(deleteRule: .cascade, inverse: \Comment.topicPost)
     var comments: [Comment]?
-    
-    init(action: String, subject: String, content: String? = nil, imageURL: String? = nil, author: User) {
+
+    init(content: String, author: User, topic: Topic) {
         self.id = UUID()
-        self.action = action
-        self.subject = subject
         self.content = content
-        self.imageURL = imageURL
         self.createdAt = Date()
         self.likesCount = 0
         self.author = author
+        self.topic = topic
         self.comments = []
     }
 }
