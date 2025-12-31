@@ -6,13 +6,11 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct CommunityView: View {
     @Binding var selectedTab: String
-    @State private var viewModel = CommunityViewModel()
-    @Query(sort: \Event.date, order: .reverse) private var events: [Event]
-    @Environment(\.modelContext) private var modelContext
+    @StateObject private var viewModel = CommunityViewModel()
+    @EnvironmentObject var authManager: AuthManager
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,75 +29,88 @@ struct CommunityView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 15)
 
+            // Error message
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.horizontal)
+                    .padding(.top, 10)
+            }
+
             // Events feed
             ScrollView {
-                LazyVStack(spacing: 15) {
-                    ForEach(events) { event in
-                        VStack(alignment: .leading, spacing: 10) {
-                            // Event header
-                            HStack {
-                                Circle()
-                                    .fill(Color.gray)
-                                    .frame(width: 35, height: 35)
+                if viewModel.isLoading {
+                    ProgressView()
+                        .padding()
+                } else {
+                    LazyVStack(spacing: 15) {
+                        ForEach(viewModel.events, id: \.id) { event in
+                            VStack(alignment: .leading, spacing: 10) {
+                                // Event header
+                                HStack {
+                                    Circle()
+                                        .fill(Color.gray)
+                                        .frame(width: 35, height: 35)
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(event.name)
-                                        .font(.postAuthor)
-                                        .fontWeight(.bold)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(event.name)
+                                            .font(.postAuthor)
+                                            .fontWeight(.bold)
 
-                                    if let entity = event.entity {
-                                        Text(entity.name)
+                                        Text(event.entity.name)
                                             .font(.postBody)
                                             .foregroundColor(.secondary)
                                     }
+
+                                    Spacer()
+
+                                    // Event date
+                                    Text(event.date, style: .date)
+                                        .font(.postBody)
+                                        .foregroundColor(.secondary)
                                 }
 
-                                Spacer()
+                                // Event description
+                                if let description = event.eventDescription, !description.isEmpty {
+                                    Text(description)
+                                        .font(.postBody)
+                                }
 
-                                // Event date
-                                Text(event.date, style: .date)
-                                    .font(.postBody)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            // Event description
-                            if let description = event.eventDescription, !description.isEmpty {
-                                Text(description)
-                                    .font(.postBody)
-                            }
-
-                            // Entity address
-                            if let entity = event.entity {
+                                // Entity address
                                 HStack(spacing: 5) {
                                     Image(systemName: "mappin.circle")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
 
-                                    Text(entity.address)
+                                    Text(event.entity.address)
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
-                            }
 
-                            // Event link
-                            if let link = event.link, !link.isEmpty {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "link")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                // Event link
+                                if let link = event.link, !link.isEmpty {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "link")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
 
-                                    Text(link)
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
+                                        Text(link)
+                                            .font(.caption)
+                                            .foregroundColor(.blue)
+                                    }
                                 }
                             }
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .border(.black, width: 0.5)
                         }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .border(.black, width: 0.5)
                     }
+                    .padding()
                 }
-                .padding()
+            }
+            .refreshable {
+                await viewModel.loadEvents()
             }
 
             // Bottom navbar with tabs
@@ -122,22 +133,16 @@ struct CommunityView: View {
             .background(Color(.black))
             .edgesIgnoringSafeArea(.horizontal)
         }
-        .onAppear {
-            viewModel.configure(with: modelContext)
+        .task {
+            await viewModel.loadEvents()
+            await viewModel.loadEntities()
         }
     }
 }
 
-// Preview wrapper to provide binding
-private struct CommunityViewPreview: View {
-    @State private var selectedTab = "Community"
-
-    var body: some View {
-        CommunityView(selectedTab: $selectedTab)
-    }
-}
-
 #Preview {
-    CommunityViewPreview()
-        .modelContainer(.preview)
+    @Previewable @State var selectedTab = "Community"
+
+    CommunityView(selectedTab: $selectedTab)
+        .environmentObject(AuthManager.shared)
 }

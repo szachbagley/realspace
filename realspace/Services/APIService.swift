@@ -319,8 +319,8 @@ class APIService {
         return try handleResponse(data, response)
     }
 
-    func createListItem(action: String, subject: String) async throws -> ListItemResponse {
-        let request = CreateListItemRequest(action: action, subject: subject)
+    func createListItem(action: String, subject: String, isPublic: Bool) async throws -> ListItemResponse {
+        let request = CreateListItemRequest(action: action, subject: subject, isPublic: isPublic)
         let body = try encoder.encode(request)
 
         let (data, response) = try await makeRequest(endpoint: "list", method: "POST", body: body, requiresAuth: true)

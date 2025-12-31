@@ -6,18 +6,12 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct TopicFeedView: View {
-    let topic: Topic
-    @State private var viewModel = TopicFeedViewModel()
-    @State private var postContent: String = ""
-    @Query(sort: \User.createdAt) private var users: [User]
-    @Environment(\.modelContext) private var modelContext
-
-    var topicPosts: [TopicPost] {
-        topic.posts?.sorted(by: { $0.createdAt > $1.createdAt }) ?? []
-    }
+    let topicID: String
+    let topicName: String
+    @StateObject private var viewModel = TopicFeedViewModel()
+    @EnvironmentObject var authManager: AuthManager
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,21 +32,26 @@ struct TopicFeedView: View {
 
             // Topic header
             VStack(alignment: .leading, spacing: 5) {
-                Text(topic.name)
+                Text(topicName)
                     .font(.postAuthor)
                     .fontWeight(.bold)
-
-                Text(topic.topicDescription)
-                    .font(.postBody)
-                    .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
             .padding(.vertical, 10)
 
+            // Error message
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.horizontal)
+                    .padding(.top, 10)
+            }
+
             // Post entry field
             VStack(alignment: .leading, spacing: 10) {
-                TextField("Share your thoughts...", text: $postContent, axis: .vertical)
+                TextField("Share your thoughts...", text: $viewModel.postContent, axis: .vertical)
                     .font(.postBody)
                     .lineLimit(3...10)
                     .textFieldStyle(PlainTextFieldStyle())
@@ -60,17 +59,27 @@ struct TopicFeedView: View {
                 // Post button
                 HStack {
                     Spacer()
-                    Button(action: createPost) {
-                        Text("Post")
-                            .font(.postBody)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 8)
-                            .background(Color(.black))
+                    Button {
+                        Task {
+                            await viewModel.createPost()
+                        }
+                    } label: {
+                        if viewModel.isCreatingPost {
+                            ProgressView()
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                        } else {
+                            Text("Post")
+                                .font(.postBody)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                                .background(Color(.black))
+                        }
                     }
-                    .disabled(!canPost)
-                    .opacity(canPost ? 1.0 : 0.5)
+                    .disabled(viewModel.isCreatingPost || !viewModel.canPost)
+                    .opacity(viewModel.canPost && !viewModel.isCreatingPost ? 1.0 : 0.5)
                 }
             }
             .padding()
@@ -81,49 +90,66 @@ struct TopicFeedView: View {
 
             // Topic posts feed
             ScrollView {
-                LazyVStack(spacing: 15) {
-                    ForEach(topicPosts) { post in
-                        VStack(alignment: .leading, spacing: 10) {
-                            // Post header
-                            HStack {
-                                Circle()
-                                    .fill(Color.gray)
-                                    .frame(width: 35, height: 35)
+                if viewModel.isLoading {
+                    ProgressView()
+                        .padding()
+                } else {
+                    LazyVStack(spacing: 15) {
+                        ForEach(viewModel.posts, id: \.id) { post in
+                            VStack(alignment: .leading, spacing: 10) {
+                                // Post header
+                                HStack {
+                                    Circle()
+                                        .fill(Color.gray)
+                                        .frame(width: 35, height: 35)
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(post.author?.displayName ?? "Unknown")
-                                        .font(.postAuthor)
-                                        .fontWeight(.bold)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(post.author.displayName)
+                                            .font(.postAuthor)
+                                            .fontWeight(.bold)
 
-                                    Text("@\(post.author?.username ?? "unknown")")
-                                        .font(.postBody)
-                                        .foregroundColor(.secondary)
+                                        Text("@\(post.author.username)")
+                                            .font(.postBody)
+                                            .foregroundColor(.secondary)
+                                    }
+
+                                    Spacer()
                                 }
 
-                                Spacer()
+                                // Post content
+                                Text(post.content)
+                                    .font(.postBody)
+
+                                // Post metadata
+                                HStack(spacing: 15) {
+                                    Button {
+                                        Task {
+                                            await viewModel.likePost(post)
+                                        }
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: post.isLikedByCurrentUser == true ? "heart.fill" : "heart")
+                                            Text("\(post.likesCount)")
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(post.isLikedByCurrentUser == true ? .red : .secondary)
+                                    }
+
+                                    Label("\(post.commentsCount ?? 0)", systemImage: "bubble.right")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
-
-                            // Post content
-                            Text(post.content)
-                                .font(.postBody)
-
-                            // Post metadata
-                            HStack(spacing: 15) {
-                                Label("\(post.likesCount)", systemImage: "heart")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                Label("\(post.comments?.count ?? 0)", systemImage: "bubble.right")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .border(.black, width: 0.5)
                         }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .border(.black, width: 0.5)
                     }
+                    .padding()
                 }
-                .padding()
+            }
+            .refreshable {
+                await viewModel.loadPosts(topicID: topicID)
             }
 
             // Bottom navbar with tabs
@@ -146,51 +172,8 @@ struct TopicFeedView: View {
             .background(Color(.black))
             .edgesIgnoringSafeArea(.horizontal)
         }
-        .onAppear {
-            viewModel.configure(with: modelContext)
+        .task {
+            await viewModel.loadPosts(topicID: topicID)
         }
-    }
-
-    // MARK: - Helper Functions
-
-    private var canPost: Bool {
-        !postContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private func getCurrentUser() -> User {
-        // Try to get an existing user, or create a sample user
-        if let existingUser = users.first {
-            return existingUser
-        } else {
-            let newUser = User(username: "sampleuser", displayName: "Sample User")
-            modelContext.insert(newUser)
-            try? modelContext.save()
-            return newUser
-        }
-    }
-
-    private func createPost() {
-        guard canPost else { return }
-
-        let author = getCurrentUser()
-
-        let topicPost = TopicPost(
-            content: postContent,
-            author: author,
-            topic: topic
-        )
-
-        modelContext.insert(topicPost)
-
-        do {
-            try modelContext.save()
-            clearForm()
-        } catch {
-            print("Error saving topic post: \(error)")
-        }
-    }
-
-    private func clearForm() {
-        postContent = ""
     }
 }

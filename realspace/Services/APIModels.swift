@@ -179,11 +179,13 @@ struct EventResponse: Codable {
 struct CreateListItemRequest: Codable {
     let action: String
     let subject: String
+    let isPublic: Bool
 }
 
 struct ListItemResponse: Codable {
     let id: String
     let action: String
     let subject: String
+    let isPublic: Bool
     let createdAt: Date?
 }

@@ -6,13 +6,11 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct TopicsView: View {
     @Binding var selectedTab: String
-    @State private var viewModel = TopicsViewModel()
-    @Query(sort: \Topic.name) private var topics: [Topic]
-    @Environment(\.modelContext) private var modelContext
+    @StateObject private var viewModel = TopicsViewModel()
+    @EnvironmentObject var authManager: AuthManager
 
     var body: some View {
         NavigationStack {
@@ -32,6 +30,15 @@ struct TopicsView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 15)
 
+            // Error message
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.horizontal)
+                    .padding(.top, 10)
+            }
+
             // Search bar
             TextField("Search topics...", text: $viewModel.searchText)
                 .font(.postBody)
@@ -41,36 +48,54 @@ struct TopicsView: View {
                 .padding(.horizontal)
                 .padding(.top, 15)
 
-            // Followed Topics section
+            // Topics section
             VStack(alignment: .leading, spacing: 10) {
-                Text("Followed Topics")
+                Text("Topics")
                     .font(.postAuthor)
                     .fontWeight(.bold)
                     .padding(.horizontal)
                     .padding(.top, 20)
 
                 ScrollView {
-                    LazyVStack(spacing: 15) {
-                        ForEach(topics) { topic in
-                            NavigationLink(destination: TopicFeedView(topic: topic)) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(topic.name)
-                                        .font(.postAuthor)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.primary)
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .padding()
+                    } else {
+                        LazyVStack(spacing: 15) {
+                            ForEach(viewModel.filteredTopics, id: \.id) { topic in
+                                NavigationLink(destination: TopicFeedView(topicID: topic.id, topicName: topic.name)) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            Text(topic.name)
+                                                .font(.postAuthor)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.primary)
 
-                                    Text(topic.topicDescription)
-                                        .font(.postBody)
-                                        .foregroundColor(.secondary)
+                                            Spacer()
+
+                                            if let postsCount = topic.postsCount {
+                                                Text("\(postsCount) posts")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+
+                                        Text(topic.topicDescription)
+                                            .font(.postBody)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding()
+                                    .background(Color(.systemBackground))
+                                    .border(.black, width: 0.5)
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                                .background(Color(.systemBackground))
-                                .border(.black, width: 0.5)
                             }
                         }
+                        .padding()
                     }
-                    .padding()
+                }
+                .refreshable {
+                    await viewModel.loadTopics()
                 }
             }
 
@@ -94,23 +119,16 @@ struct TopicsView: View {
             .background(Color(.black))
             .edgesIgnoringSafeArea(.horizontal)
         }
-        .onAppear {
-            viewModel.configure(with: modelContext)
+        .task {
+            await viewModel.loadTopics()
         }
         }
-    }
-}
-
-// Preview wrapper to provide binding
-private struct TopicsViewPreview: View {
-    @State private var selectedTab = "Topics"
-
-    var body: some View {
-        TopicsView(selectedTab: $selectedTab)
     }
 }
 
 #Preview {
-    TopicsViewPreview()
-        .modelContainer(.preview)
+    @Previewable @State var selectedTab = "Topics"
+
+    TopicsView(selectedTab: $selectedTab)
+        .environmentObject(AuthManager.shared)
 }

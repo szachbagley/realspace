@@ -9,6 +9,7 @@ import SwiftUI
 
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
+    @State private var showRegister = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,6 +32,14 @@ struct LoginView: View {
                     .font(.postAuthor)
                     .fontWeight(.bold)
 
+                // Error message
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal)
+                }
+
                 // Email field
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Email")
@@ -44,6 +53,7 @@ struct LoginView: View {
                         .textInputAutocapitalization(.never)
                         .keyboardType(.emailAddress)
                         .autocorrectionDisabled()
+                        .disabled(viewModel.isLoading)
                 }
 
                 // Password field
@@ -56,22 +66,43 @@ struct LoginView: View {
                         .padding()
                         .background(Color(.systemBackground))
                         .border(.black, width: 0.5)
+                        .disabled(viewModel.isLoading)
                 }
 
                 // Login button
-                Button(action: {
-                    viewModel.login()
-                }) {
-                    Text("Login")
-                        .font(.postBody)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(Color(.black))
-                        .foregroundColor(.white)
-                        .border(.black, width: 0.5)
+                Button {
+                    Task {
+                        await viewModel.login()
+                    }
+                } label: {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                    } else {
+                        Text("Login")
+                            .font(.postBody)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(Color(.black))
+                            .foregroundColor(.white)
+                            .border(.black, width: 0.5)
+                    }
                 }
+                .disabled(viewModel.isLoading)
                 .padding(.top, 10)
+
+                // Register link
+                Button {
+                    showRegister = true
+                } label: {
+                    Text("Don't have an account? Register")
+                        .font(.postBody)
+                        .foregroundColor(.black)
+                }
+                .padding(.top, 20)
+                .disabled(viewModel.isLoading)
             }
             .padding(.horizontal, 30)
 
@@ -79,6 +110,9 @@ struct LoginView: View {
         }
         .fullScreenCover(isPresented: $viewModel.isLoggedIn) {
             MainTabView()
+        }
+        .sheet(isPresented: $showRegister) {
+            RegisterView()
         }
     }
 }

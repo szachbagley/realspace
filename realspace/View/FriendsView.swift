@@ -22,9 +22,30 @@ struct FriendsView: View {
 
                 Spacer()
 
-                Circle()
-                    .fill(Color.gray)
-                    .frame(width: 40, height: 40)
+                // Logout button
+                Menu {
+                    if let user = authManager.currentUser {
+                        Text("@\(user.username)")
+                            .font(.postBody)
+
+                        Divider()
+                    }
+
+                    Button(role: .destructive) {
+                        authManager.logout()
+                    } label: {
+                        Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
+                } label: {
+                    Circle()
+                        .fill(Color.gray)
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .foregroundColor(.white)
+                                .font(.system(size: 18))
+                        )
+                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 15)
@@ -75,6 +96,27 @@ struct FriendsView: View {
                     .font(.postBody)
                     .lineLimit(3...10)
                     .textFieldStyle(PlainTextFieldStyle())
+
+                // Image attachment button
+                HStack(spacing: 12) {
+                    Button {
+                        // Image picker would go here
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "photo")
+                                .font(.caption)
+                            Text("Add Photo")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(6)
+                    }
+
+                    Spacer()
+                }
 
                 // Post button
                 HStack {
@@ -145,6 +187,23 @@ struct FriendsView: View {
                                         .font(.postBody)
                                 }
 
+                                // Image placeholder (if imageURL exists)
+                                if let imageURL = post.imageURL, !imageURL.isEmpty {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color(.systemGray5))
+                                        .frame(height: 200)
+                                        .overlay(
+                                            VStack(spacing: 8) {
+                                                Image(systemName: "photo")
+                                                    .font(.title)
+                                                    .foregroundColor(.gray)
+                                                Text("Image Preview")
+                                                    .font(.caption)
+                                                    .foregroundColor(.gray)
+                                            }
+                                        )
+                                }
+
                                 // Post metadata
                                 HStack(spacing: 15) {
                                     Button {
@@ -197,66 +256,15 @@ struct FriendsView: View {
             .background(Color(.black))
             .edgesIgnoringSafeArea(.horizontal)
         }
-    }
-
-    // MARK: - Helper Functions
-
-    private var canPost: Bool {
-        !postSubject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private func getCurrentUser() -> User {
-        // Try to get an existing user, or create a sample user
-        if let existingUser = users.first {
-            return existingUser
-        } else {
-            let newUser = User(username: "sampleuser", displayName: "Sample User")
-            modelContext.insert(newUser)
-            try? modelContext.save()
-            return newUser
+        .task {
+            await viewModel.loadPosts()
         }
-    }
-
-    private func createPost() {
-        guard canPost else { return }
-
-        let author = getCurrentUser()
-        let content = postBody.isEmpty ? nil : postBody
-
-        let post = Post(
-            action: selectedAction,
-            subject: postSubject,
-            content: content,
-            author: author
-        )
-
-        modelContext.insert(post)
-
-        do {
-            try modelContext.save()
-            clearForm()
-        } catch {
-            print("Error saving post: \(error)")
-        }
-    }
-
-    private func clearForm() {
-        postSubject = ""
-        postBody = ""
-        selectedAction = "watched"
-    }
-}
-
-// Preview wrapper to provide binding
-private struct FriendsViewPreview: View {
-    @State private var selectedTab = "Friends"
-
-    var body: some View {
-        FriendsView(selectedTab: $selectedTab)
     }
 }
 
 #Preview {
-    FriendsViewPreview()
-        .modelContainer(.preview)
+    @Previewable @State var selectedTab = "Friends"
+
+    FriendsView(selectedTab: $selectedTab)
+        .environmentObject(AuthManager.shared)
 }

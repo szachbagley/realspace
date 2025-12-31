@@ -13,15 +13,17 @@ class ListItem {
     @Attribute(.unique) var id: UUID
     var action: String
     var subject: String
+    var isPublic: Bool
     var createdAt: Date
 
     // Relationships
     var user: User?
 
-    init(action: String, subject: String, user: User) {
+    init(action: String, subject: String, isPublic: Bool = false, user: User) {
         self.id = UUID()
         self.action = action
         self.subject = subject
+        self.isPublic = isPublic
         self.createdAt = Date()
         self.user = user
     }
