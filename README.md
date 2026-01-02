@@ -173,20 +173,22 @@ realspace/
 - ✅ Basic SwiftUI layouts for all views
 
 ### What's Not Implemented
-- ❌ User authentication (login just redirects)
-- ❌ User registration
-- ❌ Backend/API integration
-- ❌ Like/unlike functionality
-- ❌ Commenting on posts
 - ❌ Topic search functionality
-- ❌ Event creation
-- ❌ Entity management
 - ❌ Profile editing
 - ❌ Image uploads
 - ❌ User relationships (following/friends)
 - ❌ Real profile pictures (gray circles only)
 - ❌ Navigation from TopicFeedView back to TopicsView
 - ❌ Tab navigation from TopicFeedView (shows Topics tab)
+
+### Backend API Integration
+The app is configured to connect to the Realspace API v2 backend. The following features are implemented via the API:
+- ✅ User authentication (login/register)
+- ✅ JWT token-based session management
+- ✅ Like/unlike functionality for posts and topic posts
+- ✅ Commenting on posts and topic posts
+- ✅ Event creation and management
+- ✅ Entity (venue) management
 
 ## Preview System
 
@@ -232,11 +234,36 @@ The app includes a comprehensive preview helper (`PreviewHelper.swift`) with thr
 
 ## Running the App
 
+### Prerequisites
+
+1. **Backend API** - The app requires the Realspace API v2 backend to be running
+2. Start the backend:
+   ```bash
+   cd ../Realspace-API-v2/Realspace-API-v2
+   dotnet run
+   ```
+   Or with Docker:
+   ```bash
+   cd ../Realspace-API-v2
+   docker compose up -d
+   ```
+
+### Running the iOS App
+
 1. Open `realspace.xcodeproj` in Xcode 26.0+
 2. Select iOS Simulator (iOS 17.6+)
 3. Build and run (Cmd+R)
-4. App starts on LoginView - tap "Login" to enter
-5. Creates persistent SwiftData store on first launch
+4. Register a new account or login with existing credentials
+5. The app connects to `http://localhost:8080/api` by default
+
+### Testing on Physical Device
+
+To test on a physical device, update the base URL in `Services/APIService.swift`:
+```swift
+// Change this to your Mac's IP address
+private let baseURL = "http://YOUR_MAC_IP:8080/api"
+```
+Find your IP with: `ipconfig getifaddr en0`
 
 ## Development Notes
 
